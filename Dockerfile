@@ -10,6 +10,7 @@ WORKDIR /app
 COPY requirements*.txt ./
 RUN pip install --no-cache-dir -r requirements.txt -r requirements-optional.txt
 COPY . .
+COPY data/cache/ ./data/cache/
 COPY --from=web /web/dist ./frontend/dist
 ENV DATA_DIR=/app/data
 EXPOSE 8000
