@@ -1,0 +1,3 @@
+Earth textures (day = NASA Blue Marble, night = NASA Black Marble/city lights, water mask, clouds) are taken
+from the three-globe npm package (MIT licence, see THREE-GLOBE-LICENSE.txt), whose imagery derives from NASA
+Visible Earth (public domain). No other imagery is bundled.
