@@ -1,0 +1,13 @@
+# Core (everything except deep learning). `pip install -r requirements.txt` must succeed on a plain Windows/Linux/macOS Python 3.10+.
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+scikit-learn>=1.4
+requests>=2.31
+sgp4>=2.23
+sqlalchemy>=2.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+httpx>=0.27
+pytest>=8.0

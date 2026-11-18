@@ -1,0 +1,6 @@
+# Install separately; failures here do not affect the rest of the app.
+#   pip install -r requirements-optional.txt
+torch>=2.2          # Forecast & DL page (MLP/CNN/LSTM/GRU/CNN-LSTM/Transformer, autoencoder). CPU build is fine.
+xgboost>=2.0        # adds XGBoost to the ML Lab regression suite
+# psycopg[binary]>=3.1   # only if you use PostgreSQL (DATABASE_URL=postgresql+psycopg://...)
+# mlflow>=2.10           # optional experiment mirror (set MLFLOW_TRACKING_URI)
