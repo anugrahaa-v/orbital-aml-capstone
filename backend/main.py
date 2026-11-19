@@ -11,19 +11,16 @@ from pydantic import BaseModel, Field
 from sgp4.propagation import gstime
 
 from backend.jobs import Jobs
-from collision_engine.screening import (closest_approach, distance_series, screen_primary, ScreeningConfig,
-                                        pc_or_unavailable)
 from database import store
 from experiments import common
-from experiments.features import feature_frame, training_table, DEFAULT_FEATURES
 from orbital_engine.catalog import Catalogue
-from orbital_engine.elements import derive
-from orbital_engine.propagate import to_jd
-from orbital_engine.frames import teme_to_ecef_many, ecef_to_geodetic_many
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 LABELS = {"observed": "OBSERVED: published GP element sets (CelesTrak)", "derived": "DERIVED from observed elements",
           "simulated": "SIMULATED: SGP4 propagation / simulator output", "ml": "ML PREDICTION"}
+
+DEFAULT_FEATURES = ["mean_motion", "eccentricity", "inclination", "bstar", "log_abs_bstar", "a_km", "perigee_alt",
+                    "apogee_alt", "raan_sin", "raan_cos"]
 
 
 class State:
@@ -117,6 +114,7 @@ def catalogue(q: str | None = None, cls: str | None = None, alt_min: float | Non
 
 @app.get("/api/object/{nid}")
 def object_detail(nid: int):
+    from orbital_engine.elements import derive
     o = _obj(nid); d = derive(float(o.fields["MEAN_MOTION"]), float(o.fields["ECCENTRICITY"]))
     snaps = 0
     try: snaps = len(store.get_history(S.engine(), nid))
@@ -130,6 +128,8 @@ def object_detail(nid: int):
 
 @app.get("/api/orbit/{nid}/path")
 def orbit_path(nid: int, start: str | None = None, points: int = 240):
+    from orbital_engine.propagate import to_jd
+    from orbital_engine.frames import teme_to_ecef_many, ecef_to_geodetic_many
     o = _obj(nid); t0 = _t(start); period = o.period_min * 60
     times = [t0 + dt.timedelta(seconds=period * i / points) for i in range(points + 1)]
     err, r, v = S.catalogue().positions([o], times)
@@ -145,6 +145,7 @@ def orbit_path(nid: int, start: str | None = None, points: int = 240):
 def positions(start: str | None = None, duration_min: float = 90, step_s: float = 60, cls: str | None = None,
               group: str | None = None, alt_min: float | None = None, alt_max: float | None = None,
               limit: int = Query(3000, le=8000), q: str | None = None):
+    from orbital_engine.propagate import to_jd
     cat = S.catalogue(); objs = cat.filter(q, cls, alt_min, alt_max, group)
     if len(objs) > limit:
         objs = [objs[i] for i in np.linspace(0, len(objs) - 1, limit).astype(int)]
@@ -162,6 +163,8 @@ def positions(start: str | None = None, duration_min: float = 90, step_s: float 
 
 @app.get("/api/ground-track/{nid}")
 def ground_track(nid: int, start: str | None = None, hours: float = 3, step_s: float = 60):
+    from orbital_engine.propagate import to_jd
+    from orbital_engine.frames import teme_to_ecef_many, ecef_to_geodetic_many
     o = _obj(nid); t0 = _t(start); n = int(hours * 3600 / step_s) + 1
     times = [t0 + dt.timedelta(seconds=i * step_s) for i in range(n)]
     err, r, _ = S.catalogue().positions([o], times)
@@ -174,6 +177,7 @@ def ground_track(nid: int, start: str | None = None, hours: float = 3, step_s: f
 # ------------------------------------------------------------------ collision
 @app.get("/api/collision/closest")
 def collision_closest(a: int, b: int, start: str | None = None, hours: float = 24, window_min: float = 10):
+    from collision_engine.screening import closest_approach, distance_series
     A, B = _obj(a), _obj(b); t0 = _t(start)
     c = closest_approach(A, B, t0, hours * 3600, 10.0)
     if c is None: raise HTTPException(422, "SGP4 failed for this pair in the window")
@@ -192,6 +196,7 @@ class ScreenReq(BaseModel):
 
 @app.post("/api/collision/screen")
 def collision_screen(req: ScreenReq):
+    from collision_engine.screening import screen_primary, ScreeningConfig
     cat, p = S.catalogue(), _obj(req.primary)
     cfg = ScreeningConfig(req.threshold_km, req.horizon_h, req.coarse_step_s, max_results=req.max_results)
     t0 = _t(req.start); res = screen_primary(cat, p, t0, cfg)
@@ -214,6 +219,7 @@ class PcReq(BaseModel):
 
 @app.post("/api/collision/pc")
 def collision_pc(req: PcReq):
+    from collision_engine.screening import closest_approach, pc_or_unavailable
     A, B = _obj(req.a), _obj(req.b)
     c = closest_approach(A, B, _t(req.start), req.hours * 3600, 10.0)
     if c is None: raise HTTPException(422, "SGP4 failed")
@@ -293,6 +299,7 @@ def dl_anomaly(seed: int = 42, epochs: int = 120):
     cat = S.catalogue()
     def job():
         from experiments.deep_learning import autoencoder_anomaly
+        from experiments.features import feature_frame
         f = feature_frame(cat).dropna(subset=DEFAULT_FEATURES).sort_values("epoch")
         f = f[f.obj_class != "ROCKET_BODY"]
         cut = int(len(f) * 0.7); tr, te = f.iloc[:cut], f.iloc[cut:]
@@ -311,6 +318,7 @@ class MLReq(BaseModel):
 
 
 def _table():
+    from experiments.features import training_table
     cat = S.catalogue()
     hist = None
     try: hist = store.history_frame(S.engine())
@@ -323,6 +331,7 @@ def ml_run(req: MLReq):
     cat = S.catalogue()
     def job():
         from experiments import regression, classification, feature_selection, dimred, clustering
+        from experiments.features import feature_frame
         _, (df, mode, targets, dlabel, note) = _table()
         tgt = req.target or targets[0]; prov = common.provenance(cat); ff = feature_frame(cat)
         if req.task == "regression":
