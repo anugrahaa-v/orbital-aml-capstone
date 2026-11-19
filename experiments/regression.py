@@ -1,4 +1,4 @@
-"""All requested regression models with time-aware tuning and leakage-safe pipelines."""
+﻿"""All requested regression models with time-aware tuning and leakage-safe pipelines."""
 from __future__ import annotations
 import time, warnings
 import numpy as np, pandas as pd
@@ -41,7 +41,7 @@ def model_zoo(seed: int = 42) -> dict:
         "bayesian_ridge": (BayesianRidge(), {}),
         "svr": (SVR(kernel="rbf"), {"C": [1.0, 10.0], "epsilon": [0.01, 0.1]}),
         "decision_tree": (DecisionTreeRegressor(random_state=seed), {"max_depth": [3, 6, 10]}),
-        "random_forest": (RandomForestRegressor(n_estimators=120, random_state=seed, n_jobs=-1),
+        "random_forest": (RandomForestRegressor(n_estimators=40, random_state=seed, n_jobs=1),
                           {"max_depth": [6, 12]}),
         "gradient_boosting": (GradientBoostingRegressor(random_state=seed),
                               {"n_estimators": [150], "learning_rate": [0.05, 0.1], "max_depth": [2, 3]}),
@@ -49,7 +49,7 @@ def model_zoo(seed: int = 42) -> dict:
     }
     if HAVE_XGB:
         z["xgboost"] = (XGBRegressor(random_state=seed, n_jobs=2, verbosity=0),
-                        {"n_estimators": [200], "max_depth": [3, 6], "learning_rate": [0.05, 0.1]})
+                        {"n_estimators": [50], "max_depth": [3, 6], "learning_rate": [0.05, 0.1]})
     return z
 
 
@@ -66,8 +66,8 @@ def _wrap(est, grid):
 
 
 def run_regression(df: pd.DataFrame, features: list[str], target: str, time_col: str = "epoch", seed: int = 42,
-                   models: list[str] | None = None, n_splits: int = 3, max_rows_svr: int = 4000,
-                   max_rows: int | None = 12000) -> dict:
+                   models: list[str] | None = None, n_splits: int = 2, max_rows_svr: int = 1000,
+                   max_rows: int | None = 1500) -> dict:
     warnings.filterwarnings("ignore")
     d = df.dropna(subset=features + [target]).copy()
     if len(d) < 60:
@@ -120,3 +120,4 @@ def run_regression(df: pd.DataFrame, features: list[str], target: str, time_col:
     out["models"] = results
     out["xgboost_available"] = HAVE_XGB
     return out
+
