@@ -1,4 +1,4 @@
-"""Classification experiment. Labels come from CelesTrak group membership (DEBRIS vs PAYLOAD): a defensible
+﻿"""Classification experiment. Labels come from CelesTrak group membership (DEBRIS vs PAYLOAD): a defensible
 but NOT ground-truth label. The task therefore measures how separable catalogued fragmentation-debris groups
 are from active payloads by orbit/drag features, not 'true' object type detection."""
 from __future__ import annotations
@@ -20,16 +20,16 @@ from .common import chronological_split
 def classifiers(seed=42):
     return {
         "logistic_regression": LogisticRegression(max_iter=2000, class_weight="balanced"),
-        "random_forest": RandomForestClassifier(n_estimators=150, random_state=seed, n_jobs=-1, class_weight="balanced"),
+        "random_forest": RandomForestClassifier(n_estimators=40, random_state=seed, n_jobs=1, class_weight="balanced"),
         "gradient_boosting": GradientBoostingClassifier(random_state=seed),
         "knn": KNeighborsClassifier(n_neighbors=15),
         "svc_rbf": SVC(probability=True, class_weight="balanced", random_state=seed),
-        "mlp": MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=400, random_state=seed),
+        "mlp": MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=150, random_state=seed),
     }
 
 
 def run_classification(df: pd.DataFrame, features: list[str], seed: int = 42, time_col: str = "epoch",
-                       positive="DEBRIS", negative="PAYLOAD", max_rows=15000) -> dict:
+                       positive="DEBRIS", negative="PAYLOAD", max_rows=2000) -> dict:
     warnings.filterwarnings("ignore")
     d = df[df["obj_class"].isin([positive, negative])].dropna(subset=features).copy()
     if d["obj_class"].nunique() < 2:
@@ -62,3 +62,6 @@ def run_classification(df: pd.DataFrame, features: list[str], seed: int = 42, ti
     out["models"].sort(key=lambda m: -m["roc_auc"])
     out["confusion_labels"] = [negative, positive]
     return out
+
+
+

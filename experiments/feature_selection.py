@@ -1,4 +1,4 @@
-"""Feature selection: correlation, variance threshold, SelectKBest, mutual information, RFE,
+﻿"""Feature selection: correlation, variance threshold, SelectKBest, mutual information, RFE,
 random-forest importance, L1. Selectors are fit on the TRAIN segment only (chronological)."""
 from __future__ import annotations
 import numpy as np, pandas as pd
@@ -14,8 +14,8 @@ def run_feature_selection(df: pd.DataFrame, features: list[str], target: str, ti
                           k: int = 5) -> dict:
     d = df.dropna(subset=features + [target])
     tr, _, _ = chronological_split(d, time_col, (0.7, 0.1, 0.2))
-    if len(tr) > 6000:
-        tr = tr.iloc[np.linspace(0, len(tr) - 1, 6000).astype(int)]
+    if len(tr) > 1500:
+        tr = tr.iloc[np.linspace(0, len(tr) - 1, 1500).astype(int)]
     X = StandardScaler().fit_transform(tr[features].to_numpy()); y = tr[target].to_numpy()
     k = min(k, len(features))
     corr = pd.DataFrame(X, columns=features).corr().round(4)
@@ -24,8 +24,8 @@ def run_feature_selection(df: pd.DataFrame, features: list[str], target: str, ti
     kb = SelectKBest(f_regression, k=k).fit(X, y)
     mi = mutual_info_regression(X, y, random_state=seed)
     rfe = RFE(LinearRegression(), n_features_to_select=k).fit(X, y)
-    rf = RandomForestRegressor(n_estimators=120, random_state=seed, n_jobs=-1, max_depth=10).fit(X, y)
-    lasso = LassoCV(cv=3, random_state=seed, max_iter=20000).fit(X, y)
+    rf = RandomForestRegressor(n_estimators=40, random_state=seed, n_jobs=1, max_depth=10).fit(X, y)
+    lasso = LassoCV(cv=2, random_state=seed, max_iter=5000).fit(X, y)
     table = []
     for i, f in enumerate(features):
         table.append({"feature": f, "corr_with_target": ytc[i], "variance_kept": bool(vt.get_support()[i]),
@@ -42,3 +42,7 @@ def run_feature_selection(df: pd.DataFrame, features: list[str], target: str, ti
             "correlation_matrix": {"labels": features, "values": corr.to_numpy().tolist()},
             "table": sorted(table, key=lambda r: -r["votes"]),
             "fit_on": "chronological training segment only"}
+
+
+
+

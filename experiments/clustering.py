@@ -1,4 +1,4 @@
-"""K-Means (elbow, silhouette, optimum K), hierarchical (Ward/complete/average, dendrogram), validation metrics."""
+﻿"""K-Means (elbow, silhouette, optimum K), hierarchical (Ward/complete/average, dendrogram), validation metrics."""
 from __future__ import annotations
 import warnings
 import numpy as np, pandas as pd
@@ -23,13 +23,13 @@ def metrics(X, labels, inertia=None, seed=42) -> dict:
     n_lab = len(set(labels))
     if n_lab < 2 or n_lab >= len(X):
         return {"silhouette": None, "davies_bouldin": None, "calinski_harabasz": None, "inertia": inertia}
-    ss = min(4000, len(X))
+    ss = min(500, len(X))
     return {"silhouette": float(silhouette_score(X, labels, sample_size=ss, random_state=seed)),
             "davies_bouldin": float(davies_bouldin_score(X, labels)),
             "calinski_harabasz": float(calinski_harabasz_score(X, labels)), "inertia": inertia}
 
 
-def run_kmeans(df, features=None, k_min=2, k_max=10, seed=42, max_rows=20000) -> dict:
+def run_kmeans(df, features=None, k_min=2, k_max=10, seed=42, max_rows=3000) -> dict:
     warnings.filterwarnings("ignore")
     features = features or CLUSTER_FEATURES
     d, X = _prep(df, features, max_rows, seed)
@@ -37,7 +37,7 @@ def run_kmeans(df, features=None, k_min=2, k_max=10, seed=42, max_rows=20000) ->
         return {"error": f"too few objects ({len(d)}) for K up to {k_max}"}
     sweep = []
     for k in range(k_min, k_max + 1):
-        km = KMeans(n_clusters=k, n_init=10, random_state=seed).fit(X)
+        km = KMeans(n_clusters=k, n_init=3, random_state=seed).fit(X)
         sweep.append({"k": k, **metrics(X, km.labels_, float(km.inertia_), seed)})
     best_k = max(sweep, key=lambda s: s["silhouette"] if s["silhouette"] is not None else -1)["k"]
     # elbow: point of max distance from the chord joining first and last inertia values
@@ -46,7 +46,7 @@ def run_kmeans(df, features=None, k_min=2, k_max=10, seed=42, max_rows=20000) ->
     chord = np.array([kx[-1] - kx[0], iy[-1] - iy[0]]); chord /= np.linalg.norm(chord)
     dist = [abs(chord[0] * (iy[j] - iy[0]) - chord[1] * (kx[j] - kx[0])) for j in range(len(ks))]
     elbow_k = int(ks[int(np.argmax(dist))])
-    km = KMeans(n_clusters=best_k, n_init=10, random_state=seed).fit(X)
+    km = KMeans(n_clusters=best_k, n_init=3, random_state=seed).fit(X)
     pca3 = PCA(n_components=min(3, len(features)), random_state=seed).fit(X)
     Z = pca3.transform(X)
     if Z.shape[1] < 3:
@@ -63,7 +63,7 @@ def run_kmeans(df, features=None, k_min=2, k_max=10, seed=42, max_rows=20000) ->
             "note": "Clusters are unsupervised; class composition is shown only for interpretation."}
 
 
-def run_hierarchical(df, features=None, n_clusters=None, seed=42, max_rows=2500, dendro_points=400) -> dict:
+def run_hierarchical(df, features=None, n_clusters=None, seed=42, max_rows=600, dendro_points=150) -> dict:
     warnings.filterwarnings("ignore")
     features = features or CLUSTER_FEATURES
     d, X = _prep(df, features, max_rows, seed)
@@ -82,3 +82,8 @@ def run_hierarchical(df, features=None, n_clusters=None, seed=42, max_rows=2500,
                          "linkage": "ward", "n_points": len(sub)}
     out["best_linkage_by_silhouette"] = max(out["linkages"], key=lambda l: out["linkages"][l]["silhouette"] or -1)
     return out
+
+
+
+
+

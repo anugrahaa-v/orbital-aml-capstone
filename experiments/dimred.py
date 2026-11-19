@@ -1,4 +1,4 @@
-"""PCA / LDA / ICA with downstream evaluation (reducer fit on train only)."""
+﻿"""PCA / LDA / ICA with downstream evaluation (reducer fit on train only)."""
 from __future__ import annotations
 import warnings
 import numpy as np, pandas as pd
@@ -12,7 +12,7 @@ from .common import chronological_split
 
 
 def run_dimred(df: pd.DataFrame, features: list[str], label_col="obj_class", time_col="epoch", seed=42,
-               n_components=2, max_rows=8000) -> dict:
+               n_components=2, max_rows=2000) -> dict:
     warnings.filterwarnings("ignore")
     d = df.dropna(subset=features + [label_col]).copy()
     if len(d) > max_rows:
@@ -39,7 +39,7 @@ def run_dimred(df: pd.DataFrame, features: list[str], label_col="obj_class", tim
         r["projection"] = {"x": zz[:, 0].tolist(), "y": zz[:, 1].tolist(), "label": yte[pts].tolist()}
         out["methods"][name] = r
     evaluate("PCA", PCA(n_components=min(n_components, len(features)), random_state=seed), False)
-    evaluate("ICA", FastICA(n_components=min(n_components, len(features)), random_state=seed, max_iter=1000), False)
+    evaluate("ICA", FastICA(n_components=min(n_components, len(features)), random_state=seed, max_iter=300), False)
     k_lda = min(len(classes) - 1, len(features), n_components)
     if k_lda >= 1 and len(set(ytr)) >= 2:
         evaluate("LDA", LinearDiscriminantAnalysis(n_components=k_lda), True)
@@ -49,3 +49,5 @@ def run_dimred(df: pd.DataFrame, features: list[str], label_col="obj_class", tim
     else:
         out["lda_note"] = "LDA skipped: needs >= 2 labelled classes."
     return out
+
+
